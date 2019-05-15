@@ -1,12 +1,13 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"sync/atomic"
 	"syscall"
 
+	"github.com/cclehui/connection_platform/log"
 	"github.com/gorilla/websocket"
 )
 
@@ -22,12 +23,12 @@ func ws(w http.ResponseWriter, r *http.Request) {
 
 	n := atomic.AddInt64(&count, 1)
 	if n%100 == 0 {
-		log.Printf("Total number of connections: %v", n)
+		log.Infof("Total number of connections: %v", n)
 	}
 	defer func() {
 		n := atomic.AddInt64(&count, -1)
 		if n%100 == 0 {
-			log.Printf("Total number of connections: %v", n)
+			log.Infof("Total number of connections: %v", n)
 		}
 		conn.Close()
 	}()
@@ -38,20 +39,15 @@ func ws(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return
 		}
-		log.Printf("msg: %s", string(msg))
+		log.Infof("msg: %s", string(msg))
 	}
 }
 
 func main() {
 	// Increase resources limitations
-	var rLimit syscall.Rlimit
-	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
-		panic(err)
-	}
-	rLimit.Cur = rLimit.Max
-	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
-		panic(err)
-	}
+	setSysResLimit()
+
+	//log.SetDefaultLogger(nil)
 
 	// Enable pprof hooks
 	go func() {
@@ -60,8 +56,22 @@ func main() {
 		}
 	}()
 
-	http.HandleFunc("/", ws)
+	//set http handler
+	http.HandleFunc("/ws", ws)
+
 	if err := http.ListenAndServe(":8972", nil); err != nil {
-		log.Fatal(err)
+		log.Fatal(fmt.Sprintf("%s", err))
+	}
+}
+
+// Increase resources limitations
+func setSysResLimit() {
+	var rLimit syscall.Rlimit
+	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
+		panic(err)
+	}
+	rLimit.Cur = rLimit.Max
+	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rLimit); err != nil {
+		panic(err)
 	}
 }
