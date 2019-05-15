@@ -1,21 +1,28 @@
-package main
+package websocket
 
 import (
-	"io"
-	"log"
-	"net"
 	"sync"
+
+	"github.com/cclehui/connection_platform/log"
+	"github.com/gorilla/websocket"
 )
 
 //reactor 模式中 处理具体业务事件的 协程池
 
-type ConnHandler func(conn net.Conn)
+const (
+	DEFAULT_WORKER_NUM   = 5
+	DEFAULT_MAX_TASK_NUM = 1000
+)
+
+type ConnHandler func(conn *websocket.Conn)
 
 type WorkerPool struct {
 	workers     int
 	maxTasks    int
-	taskQueue   chan net.Conn
+	taskQueue   chan *websocket.Conn
 	connHandler ConnHandler
+
+	runing bool
 
 	mu     sync.Mutex
 	closed bool
@@ -30,8 +37,8 @@ func NewWorkerPool(workerNum int, maxTaskNum int, connHandler ConnHandler) *Work
 	}
 	return &WorkerPool{
 		workers:     workerNum,
-		maxTasks:    t,
-		taskQueue:   make(chan net.Conn, maxTaskNum),
+		maxTasks:    maxTaskNum,
+		taskQueue:   make(chan *websocket.Conn, maxTaskNum),
 		connHandler: connHandler,
 
 		done: make(chan struct{}),
@@ -46,7 +53,7 @@ func (p *WorkerPool) Close() {
 	p.mu.Unlock()
 }
 
-func (p *WorkerPool) addTask(conn net.Conn) {
+func (p *WorkerPool) AddTask(conn *websocket.Conn) {
 	p.mu.Lock()
 	if p.closed {
 		p.mu.Unlock()
@@ -57,10 +64,19 @@ func (p *WorkerPool) addTask(conn net.Conn) {
 	p.taskQueue <- conn
 }
 
-func (p *WorkerPool) start() {
+func (p *WorkerPool) Start() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.runing {
+		return
+	}
+
 	for i := 0; i < p.workers; i++ {
 		go p.startWorker()
 	}
+
+	p.runing = true
 }
 
 func (p *WorkerPool) startWorker() {
@@ -73,25 +89,14 @@ func (p *WorkerPool) startWorker() {
 				func() {
 					defer func() {
 						if err := recover(); err != nil {
-							//log.
+							log.Warnf("connection handler error:%v", err)
 						}
-
 					}()
+
 					p.connHandler(conn)
 
 				}()
 			}
 		}
 	}
-}
-
-func handleConn(conn net.Conn) {
-	_, err := io.CopyN(conn, conn, 8)
-	if err != nil {
-		if err := epoller.Remove(conn); err != nil {
-			log.Printf("failed to remove %v", err)
-		}
-		conn.Close()
-	}
-	opsRate.Mark(1)
 }

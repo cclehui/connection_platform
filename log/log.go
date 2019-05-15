@@ -13,13 +13,13 @@ const (
 	DEFAULT_LOGGER_CALL_DEPTH = 3
 )
 
-//var defaultLogFlag = log.Lmicroseconds | log.Llongfile
-var defaultLogFlag = log.Ldate | log.Ltime | log.Lmicroseconds
+//var DefaultLogFlag = log.Lmicroseconds | log.Llongfile
+var DefaultLogFlag = log.Ldate | log.Ltime | log.Lmicroseconds
 
 var defaultLogger *Logger
 
 func init() {
-	defaultLogger = NewLogger(LEVEL_INFO, os.Stdout, defaultLogFlag)
+	defaultLogger = NewLogger(LEVEL_INFO, os.Stdout, DefaultLogFlag)
 }
 
 func SetDefaultLogger(logger *Logger) {
