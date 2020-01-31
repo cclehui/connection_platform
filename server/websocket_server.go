@@ -12,8 +12,6 @@ import (
 	"github.com/panjf2000/gnet"
 )
 
-var yewuServerMap = make(map[string]string)
-
 //数据处理过程
 func myDataHandler(param *websocket.DataHandlerParam) {
 
@@ -29,7 +27,7 @@ func myDataHandler(param *websocket.DataHandlerParam) {
 		conn_router.AddLocalConnection(yewuId, param.WSConn) //存储在内存中
 
 		//业务id和 server的对应关系
-		err := conn_router.AddServerRoute(yewuId, fmt.Sprintf("%s:%d", param.Server.IP, param.Server.Port))
+		err := conn_router.AddServerRoute(yewuId, param.Server.Addr)
 
 		if err == nil {
 			param.WSConn.UniqId = yewuId //标识连接对应关系已处理完毕
@@ -59,22 +57,46 @@ func connCloseHandler(wsConn *websocket.GnetUpgraderConn) {
 	conn_router.RemoveLocalConnection(wsConn.UniqId)
 }
 
+var serverAddr string = "192.168.67.129:8081"
+var testClientAddr string = "0.0.0.0:8080"
+var httpApiServerAddr string = "0.0.0.0:8082" //http sever api
+var grpcApiServerAddr string = "0.0.0.0:8083" //grpc sever api
+var tcpServer *websocket.WebSocketServer
+
 //启动server
 func ServerStart() {
+
+	//cclehui_test
+	localIp := getLocalIp() //获取本机ip的方法可能不行
+	port := getPortFromAddr(serverAddr)
+
+	serverAddr = fmt.Sprintf("%s:%d", localIp, port)
 
 	//启动测试client
 	go startTestClient()
 
 	//启动消息下行服务http api
+	go startHttpApiServer()
 
-	//cclehui_test
-	port := 8081
-	tcpServer := websocket.NewServer(port)
-	tcpServer.Handler = myDataHandler
-	tcpServer.ConnCloseHandler = connCloseHandler //连接关闭处理函数
+	//grpc服务启动
+	go startGrpcServer(grpcApiServerAddr)
 
-	log.Fatal(gnet.Serve(tcpServer, fmt.Sprintf("tcp://:%d", port), gnet.WithMulticore(true)))
+	//cclehui_test 端口写死
 
+	server := getServer()
+	log.Fatal(gnet.Serve(server, fmt.Sprintf("tcp://%s", serverAddr), gnet.WithMulticore(true)))
+
+}
+
+//
+func getServer() *websocket.WebSocketServer {
+	if tcpServer == nil {
+		tcpServer = websocket.NewServer(serverAddr)
+		tcpServer.Handler = myDataHandler
+		tcpServer.ConnCloseHandler = connCloseHandler //连接关闭处理函数
+	}
+
+	return tcpServer
 }
 
 func startTestClient() {
@@ -87,14 +109,12 @@ func startTestClient() {
 
 	wsHome := func(w http.ResponseWriter, r *http.Request) {
 		//websocket.ClientTemplate.Execute(w, "ws://"+r.Host+"/echo")
-		websocket.ClientTemplate.Execute(w, "ws://192.168.67.129:8081")
+		websocket.ClientTemplate.Execute(w, fmt.Sprintf("ws://%s", serverAddr))
 	}
 
-	addr := "0.0.0.0:8080"
-
-	log.Printf("http server for websocket client is listen at :%s\n", addr)
+	log.Printf("http server for websocket client is listen at :%s\n", testClientAddr)
 
 	http.HandleFunc("/", wsHome)
-	log.Fatal(http.ListenAndServe(addr, nil))
+	log.Fatal(http.ListenAndServe(testClientAddr, nil))
 
 }

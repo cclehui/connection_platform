@@ -1,0 +1,21 @@
+syntax = "proto3";
+package protobuf_def;
+
+
+service ServerApiService {
+    //发送下行消息
+    rpc SendDownStreamMsg (ParamSendDownStreamMsg) returns (ResSendDownStreamMsg) {}
+}
+
+message ParamSendDownStreamMsg {
+    string yewuId = 1;
+    string msg = 2;
+}
+
+message ResSendDownStreamMsg {
+    int32 status = 11;
+    string msg = 12;
+    string data = 13;
+}
+
+
