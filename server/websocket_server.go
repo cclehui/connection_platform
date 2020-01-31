@@ -27,7 +27,8 @@ func myDataHandler(param *websocket.DataHandlerParam) {
 		conn_router.AddLocalConnection(yewuId, param.WSConn) //存储在内存中
 
 		//业务id和 server的对应关系
-		err := conn_router.AddServerRoute(yewuId, param.Server.Addr)
+		curGrpcServerAddr := fmt.Sprintf("%s:%d", getIpFromAddr(param.Server.Addr), getPortFromAddr(grpcApiServerAddr))
+		err := conn_router.AddServerRoute(yewuId, curGrpcServerAddr)
 
 		if err == nil {
 			param.WSConn.UniqId = yewuId //标识连接对应关系已处理完毕

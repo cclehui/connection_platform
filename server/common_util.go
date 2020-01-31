@@ -45,3 +45,20 @@ func getPortFromAddr(addr string) int {
 	return result
 
 }
+
+func getIpFromAddr(addr string) string {
+
+	r, _ := regexp.Compile("(.*?):(\\d+)")
+
+	matches := r.FindStringSubmatch(addr)
+	//fmt.Println(matches)
+
+	result := ""
+
+	if len(matches) == 3 {
+		result = matches[1]
+	}
+
+	return result
+
+}

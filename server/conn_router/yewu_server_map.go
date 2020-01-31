@@ -44,7 +44,7 @@ func AddServerRoute(yewuId string, serverAddr string) error {
 func GetServerAddr(yewuId string) (string, error) {
 	client := getClient()
 
-	result, err := client.Get("key2").Result()
+	result, err := client.Get(yewuId).Result()
 	if err == nil {
 		return result, nil
 	}
